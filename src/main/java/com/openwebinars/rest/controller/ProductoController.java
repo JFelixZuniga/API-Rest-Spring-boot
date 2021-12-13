@@ -2,6 +2,8 @@ package com.openwebinars.rest.controller;
 
 import java.util.List;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -15,6 +17,8 @@ import com.openwebinars.rest.model.ProductoRepositorio;
 
 import lombok.RequiredArgsConstructor;
 
+import javax.xml.crypto.dsig.keyinfo.RetrievalMethod;
+
 @RestController
 @RequiredArgsConstructor
 public class ProductoController {
@@ -27,8 +31,14 @@ public class ProductoController {
      * @return
      */
     @GetMapping("/producto")
-    public List<Producto> obtenerTodos() {
-        return productoRepositorio.findAll();
+    public ResponseEntity<?> obtenerTodos() {
+        List<Producto> result = productoRepositorio.findAll();
+
+        if (result.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        } else {
+            return ResponseEntity.ok(result);
+        }
     }
 
     /**
@@ -38,8 +48,14 @@ public class ProductoController {
      * @return Null si no encuentra el producto
      */
     @GetMapping("/producto/{id}")
-    public Producto obtenerUno(@PathVariable Long id) {
-        return productoRepositorio.findById(id).orElse(null);
+    public ResponseEntity<?> obtenerUno(@PathVariable Long id) {
+        Producto result = productoRepositorio.findById(id).orElse(null);
+
+        if (result == null) {
+            return ResponseEntity.notFound().build();
+        } else {
+            return ResponseEntity.ok(result);
+        }
     }
 
     /**
@@ -49,8 +65,9 @@ public class ProductoController {
      * @return producto insertado
      */
     @PostMapping("/producto")
-    public Producto nuevoProducto(@RequestBody Producto nuevo) {
-        return productoRepositorio.save(nuevo);
+    public ResponseEntity<Producto> nuevoProducto(@RequestBody Producto nuevo) {
+        Producto saved = productoRepositorio.save(nuevo);
+        return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
 
     /**
@@ -59,13 +76,14 @@ public class ProductoController {
      * @return
      */
     @PutMapping("/producto/{id}")
-    public Producto editarProducto(@RequestBody Producto editar, @PathVariable Long id) {
-        if (productoRepositorio.existsById(id)) {
-            editar.setId(id);
-            return productoRepositorio.save(editar);
-        } else {
-            return null;
-        }
+    public ResponseEntity<?> editarProducto(@RequestBody Producto editar, @PathVariable Long id) {
+        return productoRepositorio.findById(id).map(p -> {
+            p.setNombre(editar.getNombre());
+            p.setPrecio(editar.getPrecio());
+            return ResponseEntity.ok(productoRepositorio.save(p));
+        }).orElseGet(() -> {
+            return ResponseEntity.notFound().build();
+        });
     }
 
     /**
@@ -75,13 +93,9 @@ public class ProductoController {
      * @return
      */
     @DeleteMapping("/producto/{id}")
-    public Producto borrarProducto(@PathVariable Long id) {
-        if (productoRepositorio.existsById(id)) {
-            Producto result = productoRepositorio.findById(id).get();
-            productoRepositorio.deleteById(id);
-            return result;
-        } else
-            return null;
+    public ResponseEntity<?> borrarProducto(@PathVariable Long id) {
+        productoRepositorio.deleteById(id);
+        return ResponseEntity.noContent().build();
     }
 
 }
